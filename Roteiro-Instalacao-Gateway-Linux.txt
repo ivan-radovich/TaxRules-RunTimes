@@ -1,0 +1,231 @@
+Roteiro instalação e atualização Gateway / Runtime em Linux
+
+Atenção: todo o procedimento abaixo foi feito com a versão atual (182) do gatetway.
+O mesmo poderá ser usado em outras versões (179, 180, 181, 183, 184, .....).
+Futuramente este processo poderá ser modificado conforme necessidade do produto.
+
+Pré-requisitos: Java e Tomcat já instalados e funcionais.
+usei a versão 11 do java e jdk,  tomcat 9 
+
+/opt/jdk ===> java_home
+/opt/jre  ===> jre_home
+/var/lib/tomcat9/bin/startup 
+
+
+1-Pode-se criar uma pasta para baixar os arquivos a usar na instalação:
+TODOS os arquivos baixados serão copiados para a pasta abaixo, 
+apenas para facilitar o processo e não é obrigatório.
+Ex.:  ~/Downloads/instalacao-TaxGateway/
+
+Os links a seguir não são fixos, variam conforme atualizações dos componentes !
+Dados/Regras (para Instalar ou atualizar)
+https://taxrules.taxweb.com.br/accounts/1/deploys             (acompanhamento legal / componentes / dados)
+https://taxrules.taxweb.com.br/accounts/1/deploys/27629   (download do componente de regras)
+https://taxrules.taxweb.com.br/accounts/1/deploys/27631   (clicar em "baixar este componente")
+===> arquivo: taxrules-rep.jar
+
+https://taxrules.taxweb.com.br/tax_modules     (acompanhamento legal / componentes / lógica e interface)
+Gateway (para Instalar ou atualizar)
+https://taxrules.taxweb.com.br/tax_modules/489/download
+===> arquivo: taxgateway-182.war
+
+Component  (só para atualização) 
+https://taxrules.taxweb.com.br/tax_modules/491/download
+===> arquivo: taxcomponent-182.jar
+
+Interface  (só para atualização)
+https://taxrules.taxweb.com.br/tax_modules/490/download
+===> arquivo: taxinterface-182.jar
+
+Arquivo de configuração:  (somente se houver necessidade)
+https://portal.taxweb.com.br/tax_modules_resources
+https://portal.taxweb.com.br/tax_modules_resources/235/download
+===> arquivo: taxcomponent.conf
+
+
+
+2-GATEWAY/RUNTIME
+
+na console (CLI)
+Criar pasta /home/administrador/taxrules/  (com permissões de leitura e gravação)
+
+OBSERVAÇÕES:
+- Caso o tomcat esteja ativo, desativar:   sudo service tomcat9 stop    ===> aguardar o encerramento.
+- Se houver alguma instalação anterior do runtime, recomenda-se APAGAR o arquivo taxgateway-XXX.war e a pasta taxgateway-XXX correspondentes.
+
+Incluir em CATALINA.SH  (ou STARTUP.SH) no diretorio do  /var/lib/tomcat9/bin/catalina.sh, caso as linhas abaixo não existam.     
+
+edit /var/lib/tomcat9/bin/catalina.sh
+(no inicio do arquivo logo após os comentários)
+export JAVA_OPTS="-Dtaxcomponent.conf.basedir=/home/administrador/taxrules -Dtaxcomponent.rules.basedir=/home/administrador/taxrules"
+export JAVA_HOME=/opt/java/jdk1.6.0_45/
+export JRE_HOME=/opt/java/jdk1.6.0_45/
+Salvar e fechar o arquivo
+
+cd ~/Downloads/instalacao-TaxGateway/     (pasta com os arquivos da instalação)
+ls tax*
+taxgateway-182.war  
+taxrules-rep.jar
+
+taxcomponent-182.jar  (*)  
+taxinterface-182.jar  (*)  
+taxcomponent.conf  (**)  
+
+cp taxrules-rep.jar /home/administrador/taxrules/
+(este é o componente de regras)
+
+cp taxgateway-182.war  /var/lib/tomcat9/webapps/
+(quando o tomcat estiver ativo, este irá criar a pasta taxgateway-182)
+
+Subir (ativar) o TomCat apos copiar os arquivos
+sudo service tomcat9 start
+
+(*) Somente para atualização
+(**) Somente se houver necessidade
+
+Para testar:
+http://localhost:9090/taxgateway-182
+Clicar em   API   /   Documentação    /    (POST) /taxrules/calctaxes    /     Try it out! 
+9090 ===> está hard coded no portal !!!!!
+
+
+Para atualizar as REGRAS:
+
+Baixar o novo componente de regras
+https://taxrules.taxweb.com.br/accounts/1/deploys             (acompanhamento legal / componentes / dados)
+
+service tomcat9 stop
+rm  /home/administrador/taxrules/taxrules-rep.jar   (se não deletar, deve-se desativar o tomcat e tentar novamente)
+cp  ~/Downloads/instalacao_TaxGateway/taxrules-rep.jar   /home/administrador/taxrules 
+service tomcat9 start
+
+OU
+
+Fazer login no componente:
+usuario: admin
+senha: secreta
+entrar na pagina de "Atualização de Regras"
+escolher o arquivo   taxrules-rep.jar   salvo no computador e clicar em atualizar.
+Aguardar alguns segundos. Ao terminar, clicar em Logout.
+
+
+2.2 PARA FAZER O GATEWAY RESPONDER DIRETO NA PORTA 80 
+https://stackoverflow.com/questions/715506/how-to-change-the-root-application
+
+sudo service tomcat9 stop
+na pasta  /var/lib/tomcat9/conf/
+editar server.xml 
+mudar Connector port="9090" para "80"
+
+Na seção <Host>  adicionar as linhas 
+	<Context path="ROOT" docBase="ROOT"/>
+	<Context path=""          docBase="taxgateway-182"/>
+Conforme abaixo:
+EXEMPLO:
+<Host name="localhost"  appBase="webapps" unpackWARs="true" autoDeploy="true">
+
+	<Context path="ROOT" docBase="ROOT"/>
+	<Context path=""          docBase="taxgateway-182"/>
+	<Context path="teste"   docBase="taxweb-gateway"/>  ===> exemplo para outras aplicações
+	.......................
+</Host>
+
+
+salvar o arquivo
+sudo service tomcat9 start
+
+OU 
+
+sudo service tomcat9 stop
+na pasta  /var/lib/tomcat9/conf/
+editar server.xml 
+mudar Connector port="9090" para "80"
+salvar o arquivo
+No diretório  /var/lib/tomcat9/webapps/
+Renomear o diretório  ROOT  para   ROOT.padrao
+mv  ROOT   ROOT.padrao
+Renomear   taxgateway-XXX.war   para  ROOT.war
+mv   taxgateway-XXX.war   ROOT.war
+sudo service tomcat9 start
+
+
+
+3-ATUALIZAR GATEWAY/RUNTIME (Lógica)
+na console (CLI)
+Se o TomCat estiver ativado !
+Na pasta  /var/lib/tomcat9/webapps/
+sudo rm taxgateway-182.war
+aguardar alguns segundos até que a pasta taxgateway-182 seja auto-removida.
+sudo service tomcat9 stop
+
+Executar os passos 1 e 2
+
+
+4-Banco de dados 
+Para o caso de gravação de historico de Substituiçao Tributária (ST)
+
+taxcomponent.conf  (**)  
+
+cp taxrules-rep.jar /home/administrador/taxrules/
+
+# ORACLE (JDBC) 
+#withDBAcess=true
+#database=oracle
+#driverClass=oracle.jdbc.driver.OracleDriver
+#url=jdbc:oracle:thin:@localhost:1521:XE
+#user=taxrules_component
+#password=senhasecreta
+#conMaxActive=50
+#conMaxIdle=20
+
+# MYSQL (JDBC)
+withDBAcess=true
+database=mysql
+driverClass=com.mysql.jdbc.Driver
+url=jdbc:mysql://localhost:3306/taxrules_component
+user=taxrules_component
+password=
+conMaxActive=50
+conMaxIdle=20
+
+# WebLogic DataSource 
+#withDBAcess=true
+#database=oracle
+#driverClass=jndi
+#url=taxrules_component
+
+
+
+
+
+
+
+
+4-JAVA 11
+(Caso já esteja instalado, pule para o próximo passo)
+https://www.digitalocean.com/community/tutorials/how-to-install-java-with-apt-on-ubuntu-18-04
+na console (CLI)
+sudo apt-get install openjdk-11-jdk-headless    (JDK)
+sudo apt-get install openjdk-11-jre-headless    (JRE)   (se necessario)
+export JAVA_HOME=/usr/bin/java   ====> incluir esta linha em /etc/profile
+
+Para testar:
+na console (CLI)
+java -version  ===> 11
+which java     ===>  /usr/bin/java   ====> java_home !!!
+env | grep -i java  ==> ver as variaveis de ambiente
+
+
+
+5-TOMCAT 9
+(Caso já esteja instalado, pule para o próximo passo)
+https://www.digitalocean.com/community/tutorials/install-tomcat-9-ubuntu-1804
+na console (CLI)
+sudo apt-get install tomcat9
+
+sudo service tomcat9 stop  (para desativar)  (usar senha adm ou como root)
+sudo service tomcat9 start  (para ativar)  (usar senha adm ou como root)
+
+Para testar:
+No browser (Edge / Chrome / FireFox)
+http://localhost:9090/

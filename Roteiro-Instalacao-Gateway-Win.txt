@@ -1,0 +1,221 @@
+Roteiro instalação e atualização Gateway / Runtime em Windows
+
+Atenção: todo o procedimento abaixo foi feito com a versão atual (182) do gatetway.
+O mesmo poderá ser usado em outras versões (179, 180, 181, 183, 184, .....).
+Futuramente este processo poderá ser modificado conforme necessidade do produto.
+
+Pré-requisitos: Java e Tomcat já instalados e funcionais.
+usei a versão 8 do java e jdk1.8.0_241 e tomcat 7 
+
+C:\jdk ===> java_home
+C:\jre  ===> jre_home
+C:\tomcat7\bin\startup 
+
+
+1-Pode-se criar uma pasta para baixar os arquivos a usar na instalação:
+TODOS os arquivos baixados serão copiados para a pasta abaixo, 
+apenas para facilitar o processo e não é obrigatório.
+Ex.:  C:\Downloads\instalacao_TaxGateway\
+
+Os links a seguir não são fixos, variam conforme atualizações dos componentes !
+Dados/Regras (para Instalar ou atualizar)
+https://taxrules.taxweb.com.br/accounts/1/deploys             (acompanhamento legal / componentes / dados)
+https://taxrules.taxweb.com.br/accounts/1/deploys/27629   (download do componente de regras)
+https://taxrules.taxweb.com.br/accounts/1/deploys/27631   (clicar em "baixar este componente")
+===> arquivo: taxrules-rep.jar
+
+https://taxrules.taxweb.com.br/tax_modules     (acompanhamento legal / componentes / lógica e interface)
+Gateway (para Instalar ou atualizar)
+https://taxrules.taxweb.com.br/tax_modules/489/download
+===> arquivo: taxgateway-182.war
+
+Component  (só para atualização)
+https://taxrules.taxweb.com.br/tax_modules/491/download
+===> arquivo: taxcomponent-182.jar
+
+Interface  (só para atualização)
+https://taxrules.taxweb.com.br/tax_modules/490/download
+===> arquivo: taxinterface-182.jar
+
+Arquivo de configuração:  (somente se houver necessidade)
+https://portal.taxweb.com.br/tax_modules_resources
+https://portal.taxweb.com.br/tax_modules_resources/235/download
+===> arquivo: taxcomponent.conf
+
+
+2-GATEWAY/RUNTIME
+
+na console (CLI)
+Criar pasta C:\taxrules  (com permissões de leitura e gravação)
+
+OBSERVAÇÕES:
+- Caso o tomcat esteja ativo, desativar:   C:\tomcat7\bin\shutdown    ===> aguardar o encerramento.
+- Se houver alguma instalação anterior do runtime, recomenda-se APAGAR o arquivo taxgateway-XXX.war e a pasta taxgateway-XXX correspondentes.
+
+Incluir em CATALINA.BAT  (ou STARTUP.BAT) no diretorio do C:\Tomcat7\bin\catalina.bat, caso as linhas abaixo não existam.     
+
+edit C:\Tomcat7\bin\catalina.bat
+(no inicio do arquivo logo após os comentários)
+set "JAVA_OPTS=-Dtaxcomponent.conf.basedir=C:\taxrules -Dtaxcomponent.rules.basedir=C:\taxrules"
+set JAVA_HOME=C:\jdk
+set JRE_HOME=C:\jre
+Salvar e fechar o arquivo
+
+cd C:\Downloads\instalacao_TaxGateway    (pasta com os arquivos da instalação)
+dir tax*
+taxgateway-182.war  
+taxrules-rep.jar
+
+taxcomponent-182.jar  (*)
+taxinterface-182.jar  (*)
+taxcomponent.conf  (**)
+
+copy  taxrules-rep.jar   C:\taxrules
+(este é o componente de regras)
+
+copy  taxgateway-182.war   C:\Tomcat7\webapps\
+(quando o tomcat for ativado, este irá criar a pasta taxgateway-182)
+
+Subir (ativar) o TomCat apos copiar os arquivos
+C:\tomcat7\bin\startup
+
+(*) Somente para atualização
+(**) Somente se houver necessidade
+
+Para testar:
+http://localhost:9090/taxgateway-182
+Clicar em   API   /   Documentação    /    (POST) /taxrules/calctaxes    /     Try it out! 
+
+Para atualizar as REGRAS:
+
+Baixar o novo componente de regras
+https://taxrules.taxweb.com.br/accounts/1/deploys             (acompanhamento legal / componentes / dados)
+
+del   C:\taxrules\taxrules-rep.jar   (se não deletar, deve-se desativar o tomcat - C:\tomcat7\bin\shutdown e tentar novamente)
+copy   C:\Downloads\instalacao_TaxGateway\taxrules-rep.jar   C:\taxrules 
+C:\tomcat7\bin\startup
+
+OU
+
+Fazer login no componente:
+usuario: admin
+senha: secreta
+entrar na pagina de "Atualização de Regras"
+escolher o arquivo   taxrules-rep.jar   salvo no computador e clicar em atualizar.
+Aguardar alguns segundos. Ao terminar, clicar em Logout.
+
+
+2.1-PARA INSTALAR COMO SERVIÇO NO WINDOWS
+Na pasta C:\tomcat7\bin
+setar as variaveis
+
+set JAVA_HOME=C:\jdk
+set JRE_HOME=C:\jre
+
+service install
+tomcat7w
+Abrir a aba JAVA
+
+no quadro JAVA OPTIONS adicionar os parametros
+-Dtaxcomponent.conf.basedir=C:\taxrules
+-Dtaxcomponent.rules.basedir=C:\taxrules
+
+no campo  MAXIMUM MEMORY POOL
+mudar para  8000   MB
+
+clicar OK
+Ir em serviços (CTRL + SHIFT + ESC) e iniciar o Tomcat7
+
+Obs.: letra de unidade deve ser em maiúsculas (C:\, E:\, F:\) !!!
+
+-Dcatalina.home=E:\TomCat7
+-Dcatalina.base=E:\TomCat7
+-Dignore.endorsed.dirs=E:\TomCat7\endorsed
+-Djava.io.tmpdir=E:\TomCat7\temp
+-Djava.util.logging.manager=org.apache.juli.ClassLoaderLogManager
+-Djava.util.logging.config.file=E:\TomCat7\conf\logging.properties
+-Dtaxcomponent.rules.basedir=E:\TaxRules
+-Dtaxcomponent.conf.basedir=E:\TaxRules
+
+2.2 PARA FAZER O GATEWAY RESPONDER DIRETO NA PORTA 80 
+
+C:\tomcat7\bin\shutdown
+na pasta C:\tomcat7\conf
+editar server.xml 
+mudar Connector port="9090" para "80"
+
+Na seção <Host>  adicionar as linhas 
+	<Context path="ROOT" docBase="ROOT"/>
+	<Context path=""          docBase="taxgateway-182"/>
+Conforme abaixo:
+EXEMPLO:
+<Host name="localhost"  appBase="webapps" unpackWARs="true" autoDeploy="true">
+
+	<Context path="ROOT" docBase="ROOT"/>
+	<Context path=""          docBase="taxgateway-182"/>
+	<Context path="teste"   docBase="taxweb-gateway"/>  ===> exemplo para outras aplicações
+	.......................
+</Host>
+
+salvar o arquivo
+
+No diretório C:\tomcat7\webapps\
+Renomear o diretório ROOT  para  ROOT.padrao
+Renomear   taxgateway-XXX.war   para  ROOT.war
+C:\tomcat7\bin\startup
+
+
+3-ATUALIZAR GATEWAY/RUNTIME (Lógica)
+na console (CLI)
+Se o TomCat estiver ativado !
+Na pasta  C:\Tomcat7\webapps\
+del taxgateway-182.war
+aguardar alguns segundos até que a pasta taxgateway-182 seja auto-removida.
+C:\tomcat7\bin\shutdown
+
+Executar os passos 1 e 2
+
+
+
+4-JAVA 8
+(Caso já esteja instalado, pule para o próximo passo)
+JRE
+https://www.oracle.com/java/technologies/javase-server-jre8-downloads.html#license-lightbox
+Instalar na pasta C:\jre
+
+Para testar:
+na console (CLI)
+na pasta C:\jre\bin, executar    java -version  ===>  1.8.0_241
+
+JDK
+https://www.oracle.com/java/technologies/javase/javase-jdk8-downloads.html#license-lightbox
+Instalar na pasta C:\jdk
+
+Para testar:
+na console (CLI)
+na pasta C:\jdk\bin, executar    javac -version = 1.8.0_241
+
+
+
+5-TOMCAT 7
+(Caso já esteja instalado, pule para o próximo passo)
+https://tomcat.apache.org/tomcat-7.0-doc/RUNNING.txt
+http://mirror.nbtelecom.com.br/apache/tomcat/tomcat-7/v7.0.100/bin/apache-tomcat-7.0.100-windows-x64.zip
+
+Depois de baixado, descompactar o zip acima, criando a pasta C:\tomcat7
+
+Editar o arquivo  C:\tomcat7\bin\catalina.bat  OU  C:\tomcat7\bin\startup.bat, logo apos as linhas de comentarios
+set "JAVA_OPTS=-Dtaxcomponent.conf.basedir=C:\taxrules -Dtaxcomponent.rules.basedir=C:\taxrules"
+set JAVA_HOME=C:\jdk
+set JRE_HOME=C:\jre
+
+Para ativar ou parar o TomCat:
+na console (CLI)
+na pasta  C:\tomcat7\bin, executar:
+startup  (para ativar)
+ou
+shutdown  (para desativar)
+
+Para testar:
+No browser (Edge / Chrome / FireFox)
+http://localhost:9090/
